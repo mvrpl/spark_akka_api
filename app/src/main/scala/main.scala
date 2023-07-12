@@ -1,35 +1,41 @@
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.model.{HttpEntity, HttpResponse, StatusCodes, ContentTypes}
+import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.stream.ActorMaterializer
 import org.apache.spark.sql.SparkSession
 import com.typesafe.config.ConfigFactory
+import spray.json._
 
-object WebServer extends App {
+final case class PostData(path: String, filter: String, cols: List[String])
 
+trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
+  implicit val postDataFormat: RootJsonFormat[PostData] = jsonFormat3(PostData.apply)
+}
+
+object WebServer extends App with Directives with JsonSupport {
 	implicit val system = ActorSystem()
 	implicit val materializer = ActorMaterializer()
 	implicit val executionContext = system.dispatcher
 
-	val spark: SparkSession = SparkSession.builder().getOrCreate()
+	val spark = SparkSession.builder().getOrCreate()
 
 	val sc = spark.sparkContext
-
-	val locale = new java.util.Locale("pt", "BR")
-	val formatter = java.text.NumberFormat.getIntegerInstance(locale)
 
 	val config = ConfigFactory.load()
 	val host = config.getString("http.host")
 	val port = config.getInt("http.port")
 
 	val route =
-		path("wc") {
+		path("getData") {
 			post {
-				formFields('busca.as[String]) { (busca) =>
-					val tempoInicial = System.nanoTime
-					val resultado = formatter.format(sc.textFile("/home/marcos/*.txt").map(line => line.split(" ").count(_ == busca)).reduce(_ + _))
-					val duracao = (System.nanoTime - tempoInicial) / 1e9d
-					complete(s"O termo '${busca}' apareceu ${resultado}x\nA pesquisa demorou ${duracao} segundos\n")
+				entity(as[PostData]) { (postData) =>
+					val rowsDF = spark.read.parquet(postData.path).filter(postData.filter).selectExpr(postData.cols:_*).toJSON.take(500)
+					val completeJSON = "[" ++ rowsDF.mkString(",") ++ "]"
+					complete {
+						HttpResponse(status = StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`, completeJSON))
+					}
 				}
 			}
 		}

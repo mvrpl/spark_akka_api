@@ -1,2 +1,50 @@
-*.class
-*.log
+*/project/project/
+*/project/target/
+*/null/
+
+*/lib/ant/*.jar
+*/lib/*.jar
+*/test/files/codelib/*.jar
+*/test/files/lib/*.jar
+*/test/files/speclib/instrumented.jar
+*/tools/*.jar
+
+# Developer specific properties
+/build.properties
+/buildcharacter.properties
+
+# might get generated when testing Jenkins scripts locally
+/jenkins.properties
+
+# target directory for build
+*/build/
+
+# other
+/out/
+/bin/
+/sandbox/
+
+# eclipse, intellij
+*/.classpath
+*/.project
+*/src/intellij*/*.iml
+*/src/intellij*/*.ipr
+*/src/intellij*/*.iws
+**/.cache
+/.idea
+/.settings
+metals.sbt
+
+# Standard symbolic link to build/quick/bin
+/qbin
+
+# sbt's target directories
+*/target/
+*/build-sbt/
+*/local.sbt
+jitwatch.out
+
+# metals
+.metals/
+.bloop/
+.bsp/
